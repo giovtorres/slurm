@@ -36,6 +36,7 @@ RUN set -ex \
         munge \
         munge-libs \
         ncurses-devel \
+        openssl-devel \
         patch \
         perl-core \
         pkgconfig \
@@ -68,12 +69,30 @@ RUN set -ex \
 && git config --global push.default simple
 
 # Add Tini
-ENV TINI_VERSION v0.19.0
+ARG TINI_VERSION="v0.19.0"
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini.asc /tini.asc
 RUN gpg --batch --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 595E85A6B1B4779EA4DAAEC70B588DFF0527A9B7 \
  && gpg --batch --verify /tini.asc /tini
 RUN chmod +x /tini
+
+# Use pyenv inside the container to switch between Python versions.
+ARG PYTHON_VERSIONS="3.9 3.10"
+# 3.11 3.12 3.13"
+ENV PYENV_ROOT="${HOME}/.pyenv"
+ENV PATH="$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH"
+
+RUN set -ex -o pipefail \
+    && curl https://pyenv.run | bash \
+    && echo 'eval "$(pyenv init -)"' >> "${HOME}/.bashrc" \
+    && source "${HOME}/.bashrc" \
+    && pyenv update \
+    && for python_version in ${PYTHON_VERSIONS}; \
+        do \
+            pyenv install -v $python_version; \
+            pyenv global $python_version; \
+            pip install Cython pytest; \
+        done
 
 # Mark externally mounted volumes
 # VOLUME ["/var/lib/mysql", "/var/lib/slurmd", "/var/spool/slurm", "/var/log/slurm"]

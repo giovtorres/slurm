@@ -1,0 +1,6 @@
+.git
+.pytest_cache
+.vscode
+tests/__pycache__
+docker-compose.yml
+venv

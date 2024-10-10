@@ -9,7 +9,9 @@ import testinfra
 
 @pytest.fixture(scope="session")
 def host(request):
-    subprocess.run(["docker", "build", "--platform=linux/amd64", "-t", "slurm-docker:test", "."])
+    subprocess.run(
+        ["docker", "build", "--platform=linux/amd64", "-t", "slurm-docker:test", "."]
+    )
 
     docker_id = (
         subprocess.check_output(
@@ -35,4 +37,3 @@ def host(request):
     yield testinfra.get_host(f"docker://{docker_id}")
 
     subprocess.run(["docker", "rm", "-f", docker_id])
-
