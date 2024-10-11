@@ -21,3 +21,8 @@ def test_tini_is_installed(host):
 def test_python_is_installed(host, version):
     cmd = host.run(f"pyenv global {version} && python --version")
     assert cmd.stdout.strip().startswith(f"Python {version}")
+
+
+def test_slurm_user_group_exists(host):
+    assert host.group("slurm").exists
+    assert host.user("slurm").group == "slurm"

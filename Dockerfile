@@ -7,41 +7,52 @@ LABEL org.opencontainers.image.source="https://github.com/giovtorres/slurm-docke
       org.opencontainers.image.authors="Giovanni Torres and contributors" \
       org.opencontainers.image.description="[Unofficial] Slurm in Docker"
 
+# Install dependencies
 RUN set -ex \
-    && yum makecache \
-    && yum -y update \
-    && yum -y install epel-release \
-    && yum -y install \
+    && dnf upgrade --refresh --assumeyes \
+    && dnf install --assumeyes epel-release \
+    && dnf config-manager --set-enable devel \
+    && dnf -y install \
         autoconf \
         bash-completion \
         bzip2 \
         bzip2-devel \
+        dbus-devel \
         file \
         iproute \
         gcc \
         gcc-c++ \
-        # gdbm-libs \
+        gdbm-devel \
         git \
         glibc-devel \
         gmp-devel \
-        http-parser \
-        json-c \
+        hdf5-devel \
+        http-parser-devel \
+        hwloc-devel \
+        json-c-devel \
+        libcurl-devel \
         libffi-devel \
         libGL-devel \
         libjwt-devel \
-        # libyaml-devel \
+        librdkafka-devel \
+        libyaml-devel \
         libX11-devel \
+        lua-devel \
+        lz4-devel \
         make \
         mariadb-server \
+        mariadb-devel \
         munge \
-        munge-libs \
+        munge-devel \
         ncurses-devel \
         openssl-devel \
+        pam-devel \
         patch \
         perl-core \
         pkgconfig \
         psmisc \
         readline-devel \
+        s2n-tls-devel \
         sqlite-devel \
         tcl-devel \
         tk \
@@ -76,19 +87,17 @@ RUN gpg --batch --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 595E85A6B1
  && gpg --batch --verify /tini.asc /tini
 RUN chmod +x /tini
 
-# Use pyenv inside the container to switch between Python versions.
+# Install and Use pyenv inside the container to switch between Python versions.
 ARG PYTHON_VERSIONS="3.9 3.10 3.11 3.12 3.13"
 ENV PYENV_ROOT="${HOME}/.pyenv"
 ENV PATH="$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH"
-
-# Install pyenv
 RUN set -ex -o pipefail \
     && curl https://pyenv.run | bash \
     && echo 'eval "$(pyenv init -)"' >> "${HOME}/.bashrc" \
     && source "${HOME}/.bashrc" \
     && pyenv update
 
-# Copy installation script
+# Copy Python installation script
 COPY install_python.sh /tmp/
 RUN chmod +x /tmp/install_python.sh
 
@@ -98,6 +107,37 @@ RUN /tmp/install_python.sh 3.10
 RUN /tmp/install_python.sh 3.11
 RUN /tmp/install_python.sh 3.12
 RUN /tmp/install_python.sh 3.13
+
+ARG SLURM_TAG=slurm-24-05-3-1
+ARG JOBS=2
+RUN set -ex \
+    && git clone -b ${SLURM_TAG} --single-branch --depth=1 https://github.com/SchedMD/slurm.git \
+    && pushd slurm \
+    && ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib64 \
+        --sysconfdir=/etc/slurm \
+        --enable-slurmrestd \
+        --enable-multiple-slurmd \
+        --enable-debug \
+        --with-mysql_config=/usr/bin \
+    && make -j ${JOBS} install \
+    && install -D -m644 etc/cgroup.conf.example /etc/slurm/cgroup.conf.example \
+    && install -D -m644 etc/slurm.conf.example /etc/slurm/slurm.conf.example \
+    && install -D -m600 etc/slurmdbd.conf.example /etc/slurm/slurmdbd.conf.example \
+    && install -D -m644 contribs/slurm_completion_help/slurm_completion.sh /etc/profile.d/slurm_completion.sh \
+    && popd \
+    && rm -rf slurm \
+    && groupadd -r slurm  \
+    && useradd -r -g slurm slurm \
+    && mkdir -p /etc/sysconfig/slurm \
+        /var/lib/slurmd \
+        /var/log/slurm \
+        /var/run/slurm \
+        /var/spool/slurmctld \
+        /var/spool/slurmd \
+    && chown -R slurm:slurm /var/*/slurm* \
+    && /sbin/create-munge-key
 
 # Mark externally mounted volumes
 VOLUME ["/var/lib/mysql", "/var/lib/slurmd", "/var/spool/slurm", "/var/log/slurm"]
