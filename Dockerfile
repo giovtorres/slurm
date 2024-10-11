@@ -77,25 +77,30 @@ RUN gpg --batch --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 595E85A6B1
 RUN chmod +x /tini
 
 # Use pyenv inside the container to switch between Python versions.
-ARG PYTHON_VERSIONS="3.9 3.10"
-# 3.11 3.12 3.13"
+ARG PYTHON_VERSIONS="3.9 3.10 3.11 3.12 3.13"
 ENV PYENV_ROOT="${HOME}/.pyenv"
 ENV PATH="$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH"
 
+# Install pyenv
 RUN set -ex -o pipefail \
     && curl https://pyenv.run | bash \
     && echo 'eval "$(pyenv init -)"' >> "${HOME}/.bashrc" \
     && source "${HOME}/.bashrc" \
-    && pyenv update \
-    && for python_version in ${PYTHON_VERSIONS}; \
-        do \
-            pyenv install -v $python_version; \
-            pyenv global $python_version; \
-            pip install Cython pytest; \
-        done
+    && pyenv update
+
+# Copy installation script
+COPY install_python.sh /tmp/
+RUN chmod +x /tmp/install_python.sh
+
+# Install each Python version in its own layer
+RUN /tmp/install_python.sh 3.9
+RUN /tmp/install_python.sh 3.10
+RUN /tmp/install_python.sh 3.11
+RUN /tmp/install_python.sh 3.12
+RUN /tmp/install_python.sh 3.13
 
 # Mark externally mounted volumes
-# VOLUME ["/var/lib/mysql", "/var/lib/slurmd", "/var/spool/slurm", "/var/log/slurm"]
+VOLUME ["/var/lib/mysql", "/var/lib/slurmd", "/var/spool/slurm", "/var/log/slurm"]
 
 # COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 

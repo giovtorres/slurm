@@ -3,7 +3,7 @@
 import pytest
 
 TINI_VERSION = "0.19.0"
-PYTHON_VERSIONS = ["3.9", "3.10"]  # , "3.11", "3.12", "3.13"]
+PYTHON_VERSIONS = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 SLURM_VERSION = "21.08.8"
 
 MARIADB_PORT = 3306
